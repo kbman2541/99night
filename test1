@@ -178,6 +178,11 @@ sectionESP:NewToggle("🧠 Name ESP", "แสดงชื่อสัตว์",
 sectionESP:NewToggle("🟩 Hitbox ESP", "แสดงกล่องรอบสัตว์", function(state) toggleHitboxESP = state reloadAll() end)
 sectionESP:NewToggle("🔴 Line ESP", "เส้นจากผู้เล่นไปยังสัตว์", function(state) toggleLineESP = state reloadAll() end)
 
+-- ✅ Toggle UI ด้วยปุ่ม F
+sectionESP:NewKeybind("🔑 Toggle UI", "กด F เพื่อเปิด/ปิดเมนู", Enum.KeyCode.F, function()
+    Library:ToggleUI()
+end)
+
 -- UI: Speed
 sectionSpeed:NewToggle("🏃‍♂️ Speed Hack", "วิ่งเร็ว", function(state) speedEnabled = state updateHumanoid() end)
 
@@ -199,57 +204,5 @@ sectionTP:NewButton("🔥 วาร์ปไปกองไฟ", "Teleport ไ�
 		if model.PrimaryPart then
 			root.CFrame = model.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
 		end
-	end
-end)
-
--- UI: Minimize
-local CoreGui = game:GetService("CoreGui")
-local uiMainFrame = nil
-getgenv().MiniESP_Pos = getgenv().MiniESP_Pos or UDim2.new(0, 10, 0, 10)
-local minimized = false
-
-sectionESP:NewButton("📌 ย่อ/ขยาย UI", "พับ UI เหลือไอคอน", function()
-	if not uiMainFrame then
-		for _, v in pairs(CoreGui:GetChildren()) do
-			if v.Name:find("Kavo") and v:FindFirstChild("Main") then
-				uiMainFrame = v.Main
-			end
-		end
-	end
-	if not uiMainFrame then return end
-
-	minimized = not minimized
-	if minimized then
-		uiMainFrame.Visible = false
-
-		if not CoreGui:FindFirstChild("MiniIconESP") then
-			local miniBtn = Instance.new("TextButton")
-			miniBtn.Name = "MiniIconESP"
-			miniBtn.Size = UDim2.new(0, 80, 0, 30)
-			miniBtn.Position = getgenv().MiniESP_Pos
-			miniBtn.Text = "🔍 UI"
-			miniBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-			miniBtn.TextColor3 = Color3.new(1, 1, 1)
-			miniBtn.Font = Enum.Font.SourceSansBold
-			miniBtn.TextSize = 14
-			miniBtn.Draggable = true
-			miniBtn.Active = true
-			miniBtn.Selectable = true
-			miniBtn.Parent = CoreGui
-
-			miniBtn:GetPropertyChangedSignal("Position"):Connect(function()
-				getgenv().MiniESP_Pos = miniBtn.Position
-			end)
-
-			miniBtn.MouseButton1Click:Connect(function()
-				uiMainFrame.Visible = true
-				miniBtn:Destroy()
-				minimized = false
-			end)
-		end
-	else
-		uiMainFrame.Visible = true
-		local oldMini = CoreGui:FindFirstChild("MiniIconESP")
-		if oldMini then oldMini:Destroy() end
 	end
 end)
