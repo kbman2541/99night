@@ -206,3 +206,27 @@ sectionTP:NewButton("🔥 วาร์ปไปกองไฟ", "Teleport ไ�
 		end
 	end
 end)
+
+-- 🟢 ปุ่มลอยเปิด/ปิด UI สำหรับมือถือ
+local floatingGui = Instance.new("ScreenGui")
+floatingGui.Name = "FloatingToggle"
+floatingGui.ResetOnSpawn = false
+floatingGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 50, 0, 50)
+toggleButton.Position = UDim2.new(1, -60, 0, 10) -- ขวาบน
+toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleButton.BackgroundTransparency = 0.2
+toggleButton.Text = "☰"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextScaled = true
+toggleButton.AnchorPoint = Vector2.new(0, 0)
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = floatingGui
+toggleButton.ZIndex = 10
+
+toggleButton.MouseButton1Click:Connect(function()
+	Library:ToggleUI()
+end)
