@@ -1,0 +1,186 @@
+-- โหลด Kavo UI
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("AKB", "DarkTheme")
+
+-- สร้างหมวดเดียวชื่อว่า ESP
+local tabESP = Window:NewTab("ESP")
+local sectionESP = tabESP:NewSection("ESP Options")
+local sectionSpeed = tabESP:NewSection("Movement")
+
+-- สถานะเปิด/ปิด
+local toggleNameESP = false
+local toggleHitboxESP = false
+local toggleLineESP = false
+local speedEnabled = false
+
+-- เก็บวัตถุทั้งหมด
+local espObjects, hitboxObjects, lineObjects, allConnections = {}, {}, {}, {}
+
+-- ตรวจว่าสัตว์
+function isAnimal(model)
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	return humanoid and not game.Players:GetPlayerFromCharacter(model)
+end
+
+-- ชื่อสัตว์
+function createESP(part, name)
+	if part:FindFirstChild("ESP") then return end
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "ESP"
+	gui.Adornee = part
+	gui.Size = UDim2.new(0, 100, 0, 40)
+	gui.StudsOffset = Vector3.new(0, 3, 0)
+	gui.AlwaysOnTop = true
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = name
+	label.TextColor3 = Color3.fromRGB(0, 255, 0)
+	label.TextStrokeTransparency = 0.5
+	label.TextScaled = true
+	label.Font = Enum.Font.SourceSansBold
+	label.Parent = gui
+
+	gui.Parent = part
+	table.insert(espObjects, gui)
+end
+
+-- กล่อง hitbox
+function createHitbox(model)
+	for _, part in ipairs(model:GetDescendants()) do
+		if part:IsA("BasePart") and part.Transparency < 1 then
+			local box = Instance.new("BoxHandleAdornment")
+			box.Size = part.Size
+			box.Adornee = part
+			box.AlwaysOnTop = true
+			box.ZIndex = 10
+			box.Transparency = 0.7
+			box.Color3 = Color3.fromRGB(0, 255, 0)
+			box.Parent = part
+			table.insert(hitboxObjects, box)
+		end
+	end
+end
+
+-- เส้นวาด
+function createLine(model)
+	local line = Drawing.new("Line")
+	line.Thickness = 1.5
+	line.Transparency = 1
+	line.Color = Color3.fromRGB(255, 0, 0)
+	line.Visible = true
+
+	local render = game:GetService("RunService").RenderStepped:Connect(function()
+		local player = game.Players.LocalPlayer
+		local cam = workspace.CurrentCamera
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local part = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head")
+		if not (hrp and part) then
+			line.Visible = false
+			return
+		end
+
+		local from = cam:WorldToViewportPoint(hrp.Position)
+		local to = cam:WorldToViewportPoint(part.Position)
+		line.From = Vector2.new(from.X, from.Y)
+		line.To = Vector2.new(to.X, to.Y)
+		line.Visible = true
+	end)
+
+	table.insert(lineObjects, {line = line, conn = render})
+end
+
+-- จัดการสัตว์แต่ละตัว
+function handleAnimal(model)
+	if not isAnimal(model) then return end
+
+	local head = model:FindFirstChild("Head")
+	if toggleNameESP and head then createESP(head, model.Name) end
+	if toggleHitboxESP then createHitbox(model) end
+	if toggleLineESP then createLine(model) end
+
+	local conn = model.AncestryChanged:Connect(function(_, parent)
+		if not parent then
+			if head and head:FindFirstChild("ESP") then head.ESP:Destroy() end
+		end
+	end)
+	table.insert(allConnections, conn)
+end
+
+-- ล้างทั้งหมด
+function clearAllESP()
+	for _, obj in ipairs(espObjects) do if obj then obj:Destroy() end end
+	for _, obj in ipairs(hitboxObjects) do if obj then obj:Destroy() end end
+	for _, item in ipairs(lineObjects) do
+		if item.line then item.line:Remove() end
+		if item.conn then item.conn:Disconnect() end
+	end
+	for _, conn in ipairs(allConnections) do if conn then conn:Disconnect() end end
+
+	espObjects = {}
+	hitboxObjects = {}
+	lineObjects = {}
+	allConnections = {}
+end
+
+-- โหลดสัตว์ทั้งหมดใหม่
+function reloadAll()
+	clearAllESP()
+	for _, model in ipairs(workspace:WaitForChild("Characters"):GetChildren()) do
+		if model:IsA("Model") then
+			handleAnimal(model)
+		end
+	end
+end
+
+-- อัพเดทอัตโนมัติเมื่อมีสัตว์ใหม่
+workspace.Characters.ChildAdded:Connect(function(model)
+	if model:IsA("Model") then
+		model:WaitForChild("Head", 5)
+		model:WaitForChildOfClass("Humanoid", 5)
+		handleAnimal(model)
+	end
+end)
+
+-- UI ESP Toggle
+sectionESP:NewToggle("🧠 Name ESP", "แสดงชื่อสัตว์", function(state)
+	toggleNameESP = state
+	reloadAll()
+end)
+
+sectionESP:NewToggle("🟩 Hitbox ESP", "แสดงกล่องรอบสัตว์", function(state)
+	toggleHitboxESP = state
+	reloadAll()
+end)
+
+sectionESP:NewToggle("🔴 Line ESP", "เส้นจากผู้เล่นไปยังสัตว์", function(state)
+	toggleLineESP = state
+	reloadAll()
+end)
+
+-- 🦶 Speed Hack
+local defaultSpeed = 16
+local fastSpeed = 50
+local humanoid
+
+function updateSpeed()
+	local char = game.Players.LocalPlayer.Character
+	if char then
+		humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.WalkSpeed = speedEnabled and fastSpeed or defaultSpeed
+		end
+	end
+end
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+	wait(1)
+	updateSpeed()
+end)
+
+sectionSpeed:NewToggle("🏃‍♂️ Speed Hack", "วิ่งเร็ว", function(state)
+	speedEnabled = state
+	updateSpeed()
+end)
