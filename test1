@@ -1,29 +1,43 @@
 -- โหลด Kavo UI
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("AKB", "DarkTheme")
+local Window = Library.CreateLib("ESP System", "DarkTheme")
 
--- สร้างหมวดเดียวชื่อว่า ESP
+-- แท็บ ESP
 local tabESP = Window:NewTab("ESP")
 local sectionESP = tabESP:NewSection("ESP Options")
 local sectionSpeed = tabESP:NewSection("Movement")
 
--- สถานะเปิด/ปิด
+-- แท็บ Teleport
+local tabTP = Window:NewTab("Teleport")
+local sectionTP = tabTP:NewSection("Fast Travel")
+
+-- แท็บ High Jump
+local tabJump = Window:NewTab("High Jump")
+local sectionJump = tabJump:NewSection("Jump Power")
+
+-- ตัวแปรสถานะและค่าเริ่มต้น
 local toggleNameESP = false
 local toggleHitboxESP = false
 local toggleLineESP = false
 local speedEnabled = false
+local jumpEnabled = false
+local jumpPowerValue = 50 -- ค่าเริ่มต้น jump power
 
--- เก็บวัตถุทั้งหมด
-local espObjects, hitboxObjects, lineObjects, allConnections = {}, {}, {}, {}
+local defaultSpeed = 16
+local fastSpeed = 50
+local defaultJump = 50
 
--- ตรวจว่าสัตว์
-function isAnimal(model)
+local humanoid
+local zerrettesHumanoid = nil
+
+-- ฟังก์ชันตรวจว่าสัตว์
+local function isAnimal(model)
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	return humanoid and not game.Players:GetPlayerFromCharacter(model)
 end
 
--- ชื่อสัตว์
-function createESP(part, name)
+-- สร้าง ESP ชื่อ
+local function createESP(part, name)
 	if part:FindFirstChild("ESP") then return end
 
 	local gui = Instance.new("BillboardGui")
@@ -47,8 +61,8 @@ function createESP(part, name)
 	table.insert(espObjects, gui)
 end
 
--- กล่อง hitbox
-function createHitbox(model)
+-- สร้าง Hitbox
+local function createHitbox(model)
 	for _, part in ipairs(model:GetDescendants()) do
 		if part:IsA("BasePart") and part.Transparency < 1 then
 			local box = Instance.new("BoxHandleAdornment")
@@ -64,8 +78,8 @@ function createHitbox(model)
 	end
 end
 
--- เส้นวาด
-function createLine(model)
+-- สร้างเส้น Line ESP
+local function createLine(model)
 	local line = Drawing.new("Line")
 	line.Thickness = 1.5
 	line.Transparency = 1
@@ -92,8 +106,8 @@ function createLine(model)
 	table.insert(lineObjects, {line = line, conn = render})
 end
 
--- จัดการสัตว์แต่ละตัว
-function handleAnimal(model)
+-- จัดการสัตว์ตัวเดียว
+local function handleAnimal(model)
 	if not isAnimal(model) then return end
 
 	local head = model:FindFirstChild("Head")
@@ -109,10 +123,10 @@ function handleAnimal(model)
 	table.insert(allConnections, conn)
 end
 
--- ล้างทั้งหมด
-function clearAllESP()
+-- ล้าง ESP ทั้งหมด
+local function clearAllESP()
 	for _, obj in ipairs(espObjects) do if obj then obj:Destroy() end end
-	for _, obj in ipairs(hitboxObjects) do if obj then obj:Destroy() end end
+	for _, box in ipairs(hitboxObjects) do if box then box:Destroy() end end
 	for _, item in ipairs(lineObjects) do
 		if item.line then item.line:Remove() end
 		if item.conn then item.conn:Disconnect() end
@@ -125,8 +139,8 @@ function clearAllESP()
 	allConnections = {}
 end
 
--- โหลดสัตว์ทั้งหมดใหม่
-function reloadAll()
+-- โหลดสัตว์ทั้งหมด
+local function reloadAll()
 	clearAllESP()
 	for _, model in ipairs(workspace:WaitForChild("Characters"):GetChildren()) do
 		if model:IsA("Model") then
@@ -135,7 +149,38 @@ function reloadAll()
 	end
 end
 
--- อัพเดทอัตโนมัติเมื่อมีสัตว์ใหม่
+-- อัพเดตความเร็วและการกระโดด
+local function updateHumanoid()
+	-- อัพเดต WalkSpeed ของผู้เล่น
+	local char = game.Players.LocalPlayer.Character
+	if char then
+		humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.WalkSpeed = speedEnabled and fastSpeed or defaultSpeed
+		end
+	end
+	
+	-- อัพเดต JumpPower ของ workspace.zerrettes.Humanoid
+	if workspace:FindFirstChild("zerrettes") then
+		if not zerrettesHumanoid or not zerrettesHumanoid.Parent then
+			zerrettesHumanoid = workspace.zerrettes:FindFirstChildOfClass("Humanoid")
+		end
+		if zerrettesHumanoid then
+			zerrettesHumanoid.JumpPower = jumpEnabled and jumpPowerValue or defaultJump
+		end
+	end
+end
+
+-- ตัวแปรเก็บวัตถุ ESP
+local espObjects, hitboxObjects, lineObjects, allConnections = {}, {}, {}, {}
+
+-- เมื่อโหลดตัวละครใหม่
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+	wait(1)
+	updateHumanoid()
+end)
+
+-- ติดตามสัตว์ใหม่
 workspace.Characters.ChildAdded:Connect(function(model)
 	if model:IsA("Model") then
 		model:WaitForChild("Head", 5)
@@ -160,27 +205,41 @@ sectionESP:NewToggle("🔴 Line ESP", "เส้นจากผู้เล่�
 	reloadAll()
 end)
 
--- 🦶 Speed Hack
-local defaultSpeed = 16
-local fastSpeed = 50
-local humanoid
-
-function updateSpeed()
-	local char = game.Players.LocalPlayer.Character
-	if char then
-		humanoid = char:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			humanoid.WalkSpeed = speedEnabled and fastSpeed or defaultSpeed
-		end
-	end
-end
-
-game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
-	wait(1)
-	updateSpeed()
-end)
-
+-- UI Speed Hack Toggle
 sectionSpeed:NewToggle("🏃‍♂️ Speed Hack", "วิ่งเร็ว", function(state)
 	speedEnabled = state
-	updateSpeed()
+	updateHumanoid()
+end)
+
+-- UI High Jump Toggle + Slider
+sectionJump:NewToggle("🦘 High Jump", "กระโดดสูง", function(state)
+	jumpEnabled = state
+	updateHumanoid()
+end)
+
+sectionJump:NewSlider("⚡ Jump Power", "ปรับความสูงกระโดด (สูงสุด 200)", 200, 50, function(value)
+	jumpPowerValue = value
+	if jumpEnabled then
+		updateHumanoid()
+	end
+end)
+
+-- UI Teleport Button
+sectionTP:NewButton("🔥 วาร์ปไปกองไฟ", "Teleport ไปยัง MainFire", function()
+	local char = game.Players.LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local target = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Campground")
+	if root and target and target:FindFirstChild("MainFire") and target.MainFire:FindFirstChild("Model") then
+		local fireModel = target.MainFire.Model
+		if not fireModel.PrimaryPart then
+			fireModel.PrimaryPart = fireModel:FindFirstChildWhichIsA("BasePart")
+		end
+		if fireModel.PrimaryPart then
+			root.CFrame = fireModel.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
+		else
+			warn("MainFire.Model ไม่มี PrimaryPart")
+		end
+	else
+		warn("ไม่พบตำแหน่ง MainFire.Model")
+	end
 end)
